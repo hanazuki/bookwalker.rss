@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  bookwalker-booklist
+
+Parameters:
+  NameParameter:
+    Type: String
+    Description: Your name
+  FunctionRoleParameter:
+    Type: String
+    Description: Function role
+  BookwalkerSecretNameParameter:
+    Type: String
+    Description: Name of the secrets for the login credentials in Secrets Manager
+  OutputS3BucketParameter:
+    Type: String
+    Description: Output S3 bucket name
+  OutputS3KeyParameter:
+    Type: String
+    Description: Output S3 object key
+
+Resources:
+  Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: app/
+      Handler: bookwalker.main
+      Runtime: ruby2.5
+      MemorySize: 512
+      Timeout: 5
+      Environment:
+        Variables:
+          NAME: {Ref: NameParameter}
+          BOOKWALKER_SECRET_NAME: {Ref: BookwalkerSecretNameParameter}
+          BOOKWALKER_S3_BUCKET: {Ref: OutputS3BucketParameter}
+          BOOKWALKER_S3_KEY: {Ref: OutputS3KeyParameter}
+      Events:
+        Cron:
+          Type: Schedule
+          Properties:
+            Schedule: rate(15 minutes)
+      Role: {Ref: FunctionRoleParameter}
