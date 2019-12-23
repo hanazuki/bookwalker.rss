@@ -23,15 +23,25 @@ $agent = Mechanize.new do |agent|
   agent.user_agent = 'bookwalker-booklist (+https://github.com/hanazuki/bookwalker-booklist)'
 end
 
-def scrape()
-  $agent.get('https://bookwalker.jp/holdBooks')
-
+def login
   if form = $agent.page.form_with(id: 'loginForm')
     secrets = fetch_secrets
     form.j_username = secrets.fetch('username')
     form.j_password = secrets.fetch('password')
     form.submit
   end
+end
+
+def fetch_acode
+  $agent.get('https://member.bookwalker.jp/app/03/my/profile')
+  login
+
+  $agent.page.search('#inviteId').text
+end
+
+def scrape()
+  $agent.get('https://bookwalker.jp/holdBooks')
+  login
 
   books = []
 
@@ -48,7 +58,7 @@ def scrape()
   books
 end
 
-def generate_feed(books)
+def generate_feed(books, acode)
   RSS::Maker.make('2.0') do |maker|
     maker.channel.title = maker.channel.description = "BOOK☆WALKER購入履歴 (#{$name})"
     maker.channel.link = 'https://example.com'
@@ -57,7 +67,7 @@ def generate_feed(books)
 
     books.each do |book|
       maker.items.new_item do |item|
-        item.link = book.url
+        item.link = acode ? "#{book.url}?acode=#{acode}" : book.url
         item.title = "#{book.title} / #{book.authors.join(', ')}"
         item.date = book.purchase_date.to_time
         item.guid.content = book.url
@@ -71,7 +81,9 @@ def main(*)
   books = scrape
   fail 'Something went wrong!' if books.size == 0
 
-  feed = generate_feed(books)
+  $acode ||= fetch_acode
+
+  feed = generate_feed(books, $acode)
 
   bucket = Aws::S3::Resource.new.bucket(ENV.fetch('BOOKWALKER_S3_BUCKET'))
   bucket.object(ENV.fetch('BOOKWALKER_S3_KEY')).put(
@@ -80,5 +92,3 @@ def main(*)
     content_type: 'application/rss+xml',
   )
 end
-
-main
