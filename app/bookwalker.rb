@@ -7,6 +7,10 @@ require 'rss'
 
 $name = ENV['NAME']
 
+$bucket = Aws::S3::Resource.new.bucket(ENV.fetch('BOOKWALKER_S3_BUCKET'))
+$prefix = ENV.fetch('BOOKWALKER_S3_KEY_PREFIX', '')
+
+
 $secrets_manager = Aws::SecretsManager::Client.new
 def fetch_secrets
   res = $secrets_manager.get_secret_value(secret_id: ENV.fetch('BOOKWALKER_SECRET_NAME'))
@@ -58,7 +62,11 @@ def scrape()
   books
 end
 
-def generate_feed(books, acode)
+def safe?(book)
+  book.url !~ /\br18\b/
+end
+
+def generate_feed(books, acode, safe: false)
   RSS::Maker.make('2.0') do |maker|
     maker.channel.title = maker.channel.description = "BOOK☆WALKER購入履歴 (#{$name})"
     maker.channel.link = 'https://example.com'
@@ -66,6 +74,8 @@ def generate_feed(books, acode)
     maker.items.do_sort = true
 
     books.each do |book|
+      next if safe && !safe?(book)
+
       maker.items.new_item do |item|
         item.link = acode ? "#{book.url}?acode=#{acode}" : book.url
         item.title = "#{book.title} / #{book.authors.join(', ')}"
@@ -77,18 +87,21 @@ def generate_feed(books, acode)
   end
 end
 
+def upload_feed(name, feed)
+  $bucket.object(name).put(
+    acl: 'public-read',
+    body: feed.to_s,
+    content_type: 'application/rss+xml',
+  )
+end
+
 def main(*)
   books = scrape
   fail 'Something went wrong!' if books.size == 0
 
   $acode ||= fetch_acode
-
-  feed = generate_feed(books, $acode)
-
-  bucket = Aws::S3::Resource.new.bucket(ENV.fetch('BOOKWALKER_S3_BUCKET'))
-  bucket.object(ENV.fetch('BOOKWALKER_S3_KEY')).put(
-    acl: 'public-read',
-    body: feed.to_s,
-    content_type: 'application/rss+xml',
-  )
+  [
+    Thread.new { upload_feed($prefix + "booklist.rss", generate_feed(books, $acode)) },
+    Thread.new { upload_feed($prefix + "booklist-safe.rss", generate_feed(books, $acode, safe: true)) },
+  ].map(&:value)
 end

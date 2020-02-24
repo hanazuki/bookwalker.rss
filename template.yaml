@@ -28,7 +28,7 @@ Resources:
       Handler: bookwalker.main
       Runtime: ruby2.5
       MemorySize: 512
-      Timeout: 5
+      Timeout: 10
       Environment:
         Variables:
           NAME: {Ref: NameParameter}
