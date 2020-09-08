@@ -1,2 +1,2 @@
-.aws-sam
-packaged.yaml
+/.aws-sam
+/samconfig.toml
