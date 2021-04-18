@@ -1,13 +1,13 @@
 GIT
   remote: https://github.com/hanazuki/sam-build-fast.git
-  revision: 932e72d05bdb8c52394a747eb8f7805027127f65
+  revision: 82aa5071fa61003819a0e376291b439659283d95
   specs:
     sam-build-fast (0.0.0)
 
 GEM
   remote: https://rubygems.org/
   specs:
-    rake (13.0.1)
+    rake (13.0.3)
 
 PLATFORMS
   ruby
