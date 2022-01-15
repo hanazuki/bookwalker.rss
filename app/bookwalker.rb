@@ -24,7 +24,7 @@ def parseBookDate(s)
 end
 
 $agent = Mechanize.new do |agent|
-  agent.user_agent = 'bookwalker-booklist (+https://github.com/hanazuki/bookwalker-booklist)'
+  agent.user_agent = 'bookwalker.rss (+https://github.com/hanazuki/bookwalker.rss)'
 end
 
 def login
