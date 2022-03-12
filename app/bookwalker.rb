@@ -43,23 +43,26 @@ def fetch_acode
   $agent.page.search('#inviteId').text
 end
 
-def scrape()
-  $agent.get('https://bookwalker.jp/holdBooks')
+def scrape
+  $agent.get('https://bookwalker.jp/holdBooks/')
   login
 
-  books = []
+  csrf_token = $agent.page.content[/window\.BW_CSRF_TOKEN.*$/][/(?<=").+(?=")/].gsub(/\\u([0-9a-f]{4})/i) { $1.hex.chr }
 
-  $agent.page.search('.book-item').each do |item|
-    books << Book.new(
-      id: (item % '.book-tl-txt a').attr('data-uuid'),
-      title: (item % '.book-tl-txt a').text,
-      url: (item % '.book-tl-txt a').attr('href'),
-      purchase_date: parseBookDate((item % '.book-date').text),
-      authors: (item / '.book-meta-item-author').map(&:text).reject(&:empty?),
+  $agent.post('https://bookwalker.jp/prx/holdBooks-api/hold-book-list/', {
+    'backUrl' => 'https://bookwalker.jp/holdBooks/',
+    'csrfToken' => csrf_token,
+  })
+
+  JSON.parse($agent.page.content)['holdBookList']['entities'].map do |item|
+    Book.new(
+      id: item['uuid'],
+      title: item['title'],
+      url: item['detailUrl'],
+      purchase_date: Time.parse(item['buyTime']),
+      authors: item['authors'].map {|a| a['authorName'] },
     )
   end
-
-  books
 end
 
 def safe?(book)
@@ -104,4 +107,10 @@ def main(*)
     Thread.new { upload_feed($prefix + "booklist.rss", generate_feed(books, $acode)) },
     Thread.new { upload_feed($prefix + "booklist-safe.rss", generate_feed(books, $acode, safe: true)) },
   ].map(&:value)
+end
+
+if __FILE__ == $0
+  books = scrape
+  acode = fetch_acode
+  puts generate_feed(books, acode)
 end
