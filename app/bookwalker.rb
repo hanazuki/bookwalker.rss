@@ -13,7 +13,7 @@ $prefix = ENV.fetch('BOOKWALKER_S3_KEY_PREFIX', '')
 
 $secrets_manager = Aws::SecretsManager::Client.new
 def fetch_secrets
-  res = $secrets_manager.get_secret_value(secret_id: ENV.fetch('BOOKWALKER_SECRET_NAME'))
+  res = $secrets_manager.get_secret_value(secret_id: ENV.fetch('BOOKWALKER_SECRET_ARN'))
   JSON.parse(res.secret_string)
 end
 
